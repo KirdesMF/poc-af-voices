@@ -295,12 +295,13 @@ onUnmounted(() => {
       leave-from-class="opacity-100"
       leave-to-class="transform opacity-0"
     >
-      <button
+      <RouterLink
         v-if="isButtonDisabled"
+        to="/"
         class="bg-pink-500 rounded-full flex gap-2 items-center justify-center px-4 py-2 text-white w-max disabled:opacity-50 disabled:cursor-not-allowed place-self-center"
       >
         Continue
-      </button>
+      </RouterLink>
     </Transition>
   </div>
 </template>
