@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onUnmounted, ref } from 'vue';
 
 const audioContext = ref<AudioContext | null>(null);
-const audioElement = ref<HTMLAudioElement | null>(null);
 const audioAnalyser = ref<AnalyserNode | null>(null);
 const audioSource = ref<MediaElementAudioSourceNode | null>(null);
 const isPlaying = ref(false);
@@ -16,7 +15,7 @@ function onAudioPlay(audioElement: HTMLAudioElement) {
     audioSource.value = audioContext.value.createMediaElementSource(audioElement);
     audioSource.value.connect(audioAnalyser.value);
     audioAnalyser.value.connect(audioContext.value.destination);
-    audioAnalyser.value.fftSize = 2048;
+    audioAnalyser.value.fftSize = 256;
   }
 
   function updateAudio() {
@@ -62,6 +61,18 @@ defineExpose({
   onAudioPlay,
   onAudioPause,
   onAudioEnded,
+});
+
+onUnmounted(() => {
+  if (audioSource.value) {
+    audioSource.value.disconnect();
+  }
+  if (audioAnalyser.value) {
+    audioAnalyser.value.disconnect();
+  }
+  if (audioContext.value) {
+    audioContext.value.close();
+  }
 });
 </script>
 
