@@ -1,66 +1,144 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue';
-import gsap from 'gsap';
+import { ref } from 'vue';
 
-let tl: GSAPTimeline | null = null;
+const audioContext = ref<AudioContext | null>(null);
+const audioElement = ref<HTMLAudioElement | null>(null);
+const audioAnalyser = ref<AnalyserNode | null>(null);
+const audioSource = ref<MediaElementAudioSourceNode | null>(null);
+const isPlaying = ref(false);
 
-function createAnimation() {
-  const ellipses = [...document.querySelectorAll('[data-animation="ellipse"]')];
+function onAudioPlay(audioElement: HTMLAudioElement) {
+  isPlaying.value = true;
 
-  if (tl) tl.kill();
+  if (!audioContext.value) {
+    audioContext.value = new AudioContext();
+    audioAnalyser.value = audioContext.value.createAnalyser();
+    audioSource.value = audioContext.value.createMediaElementSource(audioElement);
+    audioSource.value.connect(audioAnalyser.value);
+    audioAnalyser.value.connect(audioContext.value.destination);
+    audioAnalyser.value.fftSize = 2048;
+  }
 
-  tl = gsap.timeline({ paused: true });
+  function updateAudio() {
+    if (!audioAnalyser.value || !isPlaying.value) return;
 
-  ellipses.forEach((ellipse, index) => {
-    tl?.to(ellipse, {
-      rotation: 360,
-      transformOrigin: '50% 50%',
-      duration: 4 + index * 2,
-      ease: 'none',
-      repeat: -1,
+    const frequencyData = new Uint8Array(audioAnalyser.value.frequencyBinCount);
+    audioAnalyser.value.getByteFrequencyData(frequencyData);
+
+    const average = frequencyData.reduce((acc, curr) => acc + curr, 0) / frequencyData.length;
+    const scale = 1 + (average / 255) * 0.5;
+
+    const circles = document.querySelectorAll('.circle') as NodeListOf<HTMLDivElement>;
+    circles.forEach((circle) => {
+      circle.style.setProperty('--scale', String(scale));
+      circle.style.animationPlayState = 'running';
+      circle.style.animationDuration = `${scale * 2}s`;
     });
-  });
 
-  return tl;
+    requestAnimationFrame(updateAudio);
+  }
+
+  updateAudio();
+}
+
+function onAudioPause() {
+  isPlaying.value = false;
+  const circles = document.querySelectorAll('.circle') as NodeListOf<HTMLDivElement>;
+  circles.forEach((circle) => {
+    circle.style.animationPlayState = 'paused';
+  });
+}
+
+function onAudioEnded() {
+  isPlaying.value = false;
+  const circles = document.querySelectorAll('.circle') as NodeListOf<HTMLDivElement>;
+  circles.forEach((circle) => {
+    circle.style.animationPlayState = 'running';
+    circle.style.animationDuration = '6s';
+  });
 }
 
 defineExpose({
-  start: () => tl?.play(),
-  stop: () => tl?.pause(),
+  onAudioPlay,
+  onAudioPause,
+  onAudioEnded,
 });
-
-onMounted(() => createAnimation());
-onUnmounted(() => tl?.kill());
 </script>
 
 <template>
-  <svg viewBox="0 0 100 100" class="overflow-visible">
-    <ellipse
-      data-animation="ellipse"
-      class="stroke-pink-500 stroke-2 fill-none"
-      rx="45"
-      ry="40"
-      cx="50"
-      cy="50"
-      stroke-opacity="1"
-    />
-    <ellipse
-      data-animation="ellipse"
-      class="stroke-pink-500 stroke-2 fill-none"
-      rx="43"
-      ry="40"
-      stroke-opacity="0.7"
-      cx="50"
-      cy="50"
-    />
-    <ellipse
-      data-animation="ellipse"
-      class="stroke-pink-500 stroke-2 fill-none"
-      rx="44"
-      ry="40"
-      stroke-opacity="0.4"
-      cx="50"
-      cy="50"
-    />
-  </svg>
+  <div class="w-32 h-32 relative">
+    <div class="circle"></div>
+    <div class="circle"></div>
+    <div class="circle"></div>
+    <div class="circle"></div>
+  </div>
 </template>
+
+<style scoped>
+.circle {
+  --spin-duration: 6s;
+  --border-size: 0.5vmin;
+  --scale: 1;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 115% 140% 145% 110%/125% 140% 110% 125%;
+  border: var(--border-size) solid transparent;
+  mix-blend-mode: screen;
+
+  &:nth-child(1) {
+    border-color: color-mix(in hsl, #ff2f92, white 20%);
+    animation: spin1 var(--spin-duration) linear infinite;
+    transform-origin: 50% 50%;
+  }
+  &:nth-child(2) {
+    border-color: color-mix(in hsl, #ff2f92, white 15%);
+    animation: spin2 var(--spin-duration) linear infinite;
+  }
+  &:nth-child(3) {
+    border-color: color-mix(in hsl, #ff2f92, white 15%);
+    animation: spin3 var(--spin-duration) linear infinite;
+  }
+  &:nth-child(4) {
+    border-color: color-mix(in hsl, #ff2f92, white 10%);
+    animation: spin4 var(--spin-duration) linear infinite;
+  }
+}
+
+@keyframes spin1 {
+  0% {
+    transform: rotate(0) scale(var(--scale));
+  }
+  100% {
+    transform: rotate(360deg) scale(var(--scale));
+  }
+}
+
+@keyframes spin2 {
+  0% {
+    transform: rotate(72deg) scale(var(--scale));
+  }
+  100% {
+    transform: rotate(-288deg) scale(var(--scale));
+  }
+}
+
+@keyframes spin3 {
+  0% {
+    transform: rotate(-144deg) scale(var(--scale));
+  }
+  100% {
+    transform: rotate(216deg) scale(var(--scale));
+  }
+}
+
+@keyframes spin4 {
+  0% {
+    transform: rotate(216deg) scale(var(--scale));
+  }
+  100% {
+    transform: rotate(-144deg) scale(var(--scale));
+  }
+}
+</style>

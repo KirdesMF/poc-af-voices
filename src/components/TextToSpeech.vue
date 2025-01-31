@@ -23,7 +23,6 @@ const wordDuration = computed(() => {
 
 function onPlay() {
   audio.value?.play();
-  audioAnimation.value?.start();
 
   splitText.forEach((_, index) => {
     gsap.to(`[data-word="${splitText[index]}"]`, {
@@ -37,7 +36,7 @@ function onPlay() {
 
 function onAudioEnded() {
   emits('onAudioEnd', true);
-  audioAnimation.value?.stop();
+  audioAnimation.value?.onAudioEnded();
 }
 
 defineExpose({
@@ -47,9 +46,14 @@ defineExpose({
 
 <template>
   <div class="flex flex-col items-center justify-center gap-y-3">
-    <audio ref="audio" src="/speech/introduce.mp3" @ended="onAudioEnded"></audio>
-
-    <AudioAnimation ref="audioAnimation" class="w-32 h-32" />
+    <audio
+      ref="audio"
+      src="/speech/introduce.mp3"
+      @ended="onAudioEnded"
+      @play="audioAnimation?.onAudioPlay(audio!)"
+      @pause="audioAnimation?.onAudioPause()"
+    ></audio>
+    <AudioAnimation ref="audioAnimation" />
 
     <p class="text-2xl flex gap-x-2 flex-wrap justify-center">
       <span
